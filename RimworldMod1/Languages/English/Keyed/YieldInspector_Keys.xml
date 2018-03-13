@@ -3,5 +3,5 @@
     <YI.InspectYields>Yield: {0}, Maximum Yield: {1}</YI.InspectYields>
     <YI.Yield>Yield</YI.Yield>
     <YI.Maximum>Maximum Yield</YI.Maximum>
-    <YI.Efficiency>Efficiency</YI.Efficiency>
+    <YI.Efficiency>Yield/Day</YI.Efficiency>
 </LanguageData>

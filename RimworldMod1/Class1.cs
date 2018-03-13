@@ -7,6 +7,7 @@ using RimWorld;
 using Verse;
 using Harmony;
 using System.Reflection;
+using System.Reflection.Emit;
 
 namespace YieldInspector 
 {
@@ -29,7 +30,8 @@ namespace YieldInspector
 
         public static void Log(string message, params object[] args)
         {
-            YieldInspector.instance.Logger.Message(message, args);
+            if (instance != null)
+                YieldInspector.instance.Logger.Message(message, args);
             Verse.Log.Message(message);
         }
 
@@ -83,14 +85,14 @@ namespace YieldInspector
 
 //     [HarmonyPatch(typeof(ThingDef))]
 //     [HarmonyPatch("DisplaySpecialStats")]
-    [HarmonyPatch(typeof(StatsReportUtility), "StatsToDraw", new Type[] { typeof(Thing) } )]
+/*    [HarmonyPatch(typeof(StatsReportUtility), "StatsToDraw", new Type[] { typeof(Thing) } )]*/
 //    Maybe use DrawStatsReport instead
     public static class PlantStatReportYield
     {
         public static MethodInfo fnStatsToDraw { get; set; }
 
         [HarmonyPrefix]
-        public static bool Prefix(ref IEnumerable<StatDrawEntry> __result, ref Thing thing)
+        public static bool Prefix(ref IEnumerable<StatDrawEntry> __result, Thing thing)
         {
             //             if (__instance.category is ThingCategory.Plant)
             //             {
@@ -106,9 +108,8 @@ namespace YieldInspector
             //             
 
 
-            if (thing.def.category == ThingCategory.Plant)
+            if (thing is Plant plant && plant.IsCrop)
             {
-                Plant plant = thing as Plant;
                 List<StatDrawEntry> entries = new List<StatDrawEntry>();
                 if (fnStatsToDraw == null)
                 {
@@ -137,7 +138,6 @@ namespace YieldInspector
                     YieldInspector.Log("Changed enumerable.");
                 }
 
-
                 return false;
             }
 
@@ -148,5 +148,55 @@ namespace YieldInspector
 
 
 
+    [HarmonyPatch(typeof(StatsReportUtility), "DrawStatsReport", new Type[] { typeof(UnityEngine.Rect), typeof(Thing)})]
+    public static class PlantStatReportYield2
+    {
+        [HarmonyTranspiler]
+        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            Log.Message("In transpiler");
+
+            var instList = instructions.ToList();
+            for (int i = 0; i < instList.Count; ++i)
+            {
+                var inst = instList[i];
+                yield return inst;
+
+                if (inst.opcode == OpCodes.Brfalse && instList[i+1].opcode == OpCodes.Ldsfld
+                    && instList[i+1].operand == AccessTools.Field(typeof(StatsReportUtility), "cachedDrawEntries") )
+                {
+                    yield return new CodeInstruction(OpCodes.Ldarg, 1);
+                    yield return new CodeInstruction(OpCodes.Call, typeof(PlantStatReportYield2).GetMethod("DrawYieldStatReports"));
+
+                }
+
+            }
+            yield break;
+        }
+
+        public static void DrawYieldStatReports(Thing thing)
+        {
+            if (thing is Plant plant && plant.IsCrop)
+            {
+                var entries = AccessTools.Field(typeof(StatsReportUtility), "cachedDrawEntries").GetValue(null);
+                var fnAdd = entries.GetType().GetMethod("Add", new Type[] {typeof(StatDrawEntry) });
+
+                Log.Message("Adding to cachedDrawEntries");
+
+                float maxYield = plant.def.plant.harvestYield;
+                float efficiency = maxYield / plant.def.plant.growDays;
+                fnAdd.Invoke(entries, new object[] { new StatDrawEntry(StatCategoryDefOf.Basics, "YI.Yield".Translate(), plant.YieldNow().ToString(), 0, string.Empty) });
+                fnAdd.Invoke(entries, new object[] { new StatDrawEntry(StatCategoryDefOf.Basics, "YI.Maximum".Translate(), ((int)(maxYield)).ToString(), 0, string.Empty) });
+                fnAdd.Invoke(entries, new object[] { new StatDrawEntry(StatCategoryDefOf.Basics, "YI.Efficiency".Translate(), String.Format("{0:P2}", efficiency.ToString(), 0, string.Empty)) }) ;
+
+//                 entries.Add(new StatDrawEntry(StatCategoryDefOf.Basics, "YI.Yield".Translate(), plant.YieldNow().ToString(), 0, string.Empty));
+//                 entries.Add(new StatDrawEntry(StatCategoryDefOf.Basics, "YI.Maximum".Translate(), ((int)(maxYield)).ToString(), 0, string.Empty));
+//                 //entries.Add(new StatDrawEntry(StatCategoryDefOf.Basics, "Efficiency", String.Format("{0:0.##}%", efficiency.ToString())));
+//                 entries.Add(new StatDrawEntry(StatCategoryDefOf.Basics, "YI.Efficiency".Translate(), String.Format("{0:P2}", efficiency.ToString(), 0, string.Empty)));
+
+
+            }
+        }
+    }
 
 }
