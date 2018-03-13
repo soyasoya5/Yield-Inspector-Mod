@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<LanguageData>
+    <YI.InspectYields>Yield: {0}, Maximum Yield: {1}</YI.InspectYields>
+    <YI.Yield>Yield</YI.Yield>
+    <YI.Maximum>Maximum Yield</YI.Maximum>
+    <YI.Efficiency>Efficiency</YI.Efficiency>
+</LanguageData>

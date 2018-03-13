@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+	<name>Yield Inspector</name>
+	<targetVersion>0.18.1722</targetVersion>
+	<author>RAY</author>
+	<url></url>
+	<description>Displays crop yield when inspecting.</description>
+</ModMetaData>
