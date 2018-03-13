@@ -30,6 +30,7 @@ namespace YieldInspector
         public static void Log(string message, params object[] args)
         {
             YieldInspector.instance.Logger.Message(message, args);
+            Verse.Log.Message(message);
         }
 
         
@@ -86,7 +87,7 @@ namespace YieldInspector
 //    Maybe use DrawStatsReport instead
     public static class PlantStatReportYield
     {
-        public static MethodInfo fnStatsToDraw = null;
+        public static MethodInfo fnStatsToDraw { get; set; }
 
         [HarmonyPrefix]
         public static bool Prefix(ref IEnumerable<StatDrawEntry> __result, ref Thing thing)
