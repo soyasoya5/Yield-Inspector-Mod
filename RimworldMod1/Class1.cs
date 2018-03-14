@@ -35,10 +35,6 @@ namespace YieldInspector
             Verse.Log.Message(message);
         }
 
-        
-    
-
-
     }
 
     [HarmonyPatch(typeof(Zone_Growing))]
@@ -50,15 +46,21 @@ namespace YieldInspector
         {
             var plantDef = __instance.GetPlantDefToGrow();
             var thePlant = plantDef.plant;
-            int totalYield = 0, maxYield = 0, num = 0;
+            int totalYield = 0, maxYield = 0, num = 0, numGrowing = 0;
+            float totalGrowthRemaining = 0f;
 
 
             foreach (Thing thing in __instance.AllContainedThings)
             {
                 if (thing.def == plantDef && thing is Plant plant)
                 {
-                    totalYield += plant.YieldNow();
                     ++num;
+                    totalYield += plant.YieldNow();
+                    if (plant.LifeStage != PlantLifeStage.Mature && !plant.YIResting() && plant.GrowthRateFactor_Light > .001f)
+                    {
+                        ++numGrowing;
+                        totalGrowthRemaining += plant.YIActualGrowthTime();
+                    }
                 }
             }
 
@@ -67,6 +69,7 @@ namespace YieldInspector
 
             __result += "\n" + "YI.InspectYields".Translate(new object[] { totalYield.ToString(), (maxYield * num).ToString() });
             __result += "\n" + "YI.Efficiency".Translate() + String.Format(": {0:P2}", efficiency.ToString());
+            __result += "\n" + "YI.GrowthRemaining".Translate((totalGrowthRemaining / numGrowing).ToString("0.##"));
 
         }
     }
@@ -79,6 +82,8 @@ namespace YieldInspector
         public static void Postfix(ref Plant __instance, ref string __result)
         {
             __result += "\n" + "YI.InspectYields".Translate(new object[] { (__instance.YieldNow()).ToString(), ((int)(__instance.def.plant.harvestYield)).ToString() });
+            if (__instance.LifeStage != PlantLifeStage.Mature && !__instance.YIResting() && __instance.GrowthRateFactor_Light > .001f)
+                __result += "\n" + "YI.GrowthRemaining".Translate(__instance.YIActualGrowthTime().ToString("0.##"));
         }
     }
 
@@ -181,7 +186,7 @@ namespace YieldInspector
                 var entries = AccessTools.Field(typeof(StatsReportUtility), "cachedDrawEntries").GetValue(null);
                 var fnAdd = entries.GetType().GetMethod("Add", new Type[] {typeof(StatDrawEntry) });
 
-                Log.Message("Adding to cachedDrawEntries");
+                //Log.Message("Adding to cachedDrawEntries");
 
                 float maxYield = plant.def.plant.harvestYield;
                 float efficiency = maxYield / plant.def.plant.growDays;
@@ -197,6 +202,20 @@ namespace YieldInspector
 
             }
         }
+    }
+
+    public static class YICalculations
+    {
+        public static float YIGrowthPerTick(this Plant p) => p.GrowthRate / (60000f * p.def.plant.growDays);
+        public static int YITicksUntilFullyGrown(this Plant p) => (p.Growth > .99f) ? 0 : (int)((1f - p.Growth) / p.YIGrowthPerTick());
+
+        public static float YIGrowthRemaining(this Plant p) => (1f - p.Growth);
+
+        public static float YIGrowTicksPerDay(this Plant p) => 33000f;  // 60,000 * 0.55. Plants rest from 19 - 04 hrs Which is 45% of the day.
+
+        public static float YIActualGrowthTime(this Plant p) => (p.YIGrowthRemaining() * 60000 * p.def.plant.growDays) / (33000 * p.GrowthRate);
+
+        public static bool YIResting(this Plant p) => GenLocalDate.DayPercent(p) < 0.25f || GenLocalDate.DayPercent(p) > 0.8f;
     }
 
 }

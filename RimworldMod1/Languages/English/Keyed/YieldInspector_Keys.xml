@@ -4,4 +4,5 @@
     <YI.Yield>Yield</YI.Yield>
     <YI.Maximum>Maximum Yield</YI.Maximum>
     <YI.Efficiency>Yield/Day</YI.Efficiency>
+    <YI.GrowthRemaining>Growth Remaining: {0} Days</YI.GrowthRemaining>
 </LanguageData>
