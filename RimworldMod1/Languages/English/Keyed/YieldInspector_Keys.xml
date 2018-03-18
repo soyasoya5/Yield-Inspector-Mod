@@ -3,6 +3,7 @@
     <YI.InspectYields>Yield: {0}, Maximum Yield: {1}</YI.InspectYields>
     <YI.Yield>Yield</YI.Yield>
     <YI.Maximum>Maximum Yield</YI.Maximum>
-    <YI.Efficiency>Yield/Day</YI.Efficiency>
+    <YI.Efficiency>Avg. Yield/Day: {0}</YI.Efficiency>
+    <YI.Efficiency2>Avg. Yield/Day</YI.Efficiency2>
     <YI.GrowthRemaining>Growth Remaining: {0} Days</YI.GrowthRemaining>
 </LanguageData>

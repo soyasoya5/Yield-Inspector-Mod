@@ -56,7 +56,7 @@ namespace YieldInspector
                 {
                     ++num;
                     totalYield += plant.YieldNow();
-                    if (plant.LifeStage != PlantLifeStage.Mature && !plant.YIResting() && plant.GrowthRateFactor_Light > .001f)
+                    if (plant.Growth < 0.95f && !plant.YIResting() && plant.GrowthRateFactor_Light > .001f)
                     {
                         ++numGrowing;
                         totalGrowthRemaining += plant.YIActualGrowthTime();
@@ -68,8 +68,11 @@ namespace YieldInspector
             float efficiency = maxYield / thePlant.growDays;
 
             __result += "\n" + "YI.InspectYields".Translate(new object[] { totalYield.ToString(), (maxYield * num).ToString() });
-            __result += "\n" + "YI.Efficiency".Translate() + String.Format(": {0:P2}", efficiency.ToString());
-            __result += "\n" + "YI.GrowthRemaining".Translate((totalGrowthRemaining / numGrowing).ToString("0.##"));
+            __result += "\n" + "YI.Efficiency".Translate(efficiency.ToString("0.##"));
+
+            // If is resting period, we dont show the line.
+            if (GenLocalDate.DayPercent(__instance.Map) < 0.25f || GenLocalDate.DayPercent(__instance.Map) > 0.8f)
+                __result += "\n" + "YI.GrowthRemaining".Translate((totalGrowthRemaining / numGrowing).ToString("0.##"));
 
         }
     }
@@ -82,7 +85,7 @@ namespace YieldInspector
         public static void Postfix(ref Plant __instance, ref string __result)
         {
             __result += "\n" + "YI.InspectYields".Translate(new object[] { (__instance.YieldNow()).ToString(), ((int)(__instance.def.plant.harvestYield)).ToString() });
-            if (__instance.LifeStage != PlantLifeStage.Mature && !__instance.YIResting() && __instance.GrowthRateFactor_Light > .001f)
+            if (__instance.Growth < 0.95f && !__instance.YIResting() && __instance.GrowthRateFactor_Light > .001f)
                 __result += "\n" + "YI.GrowthRemaining".Translate(__instance.YIActualGrowthTime().ToString("0.##"));
         }
     }
@@ -156,6 +159,13 @@ namespace YieldInspector
     [HarmonyPatch(typeof(StatsReportUtility), "DrawStatsReport", new Type[] { typeof(UnityEngine.Rect), typeof(Thing)})]
     public static class PlantStatReportYield2
     {
+        //         static MethodInfo FnAdd = null;
+        //         static object entries = null;
+        //         private delegate void TFnAdd(StatDrawEntry);
+        //         static TFnAdd fnAdd = null;
+        //private static List<StatDrawEntry> entries = null;
+        
+
         [HarmonyTranspiler]
         public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
         {
@@ -183,20 +193,38 @@ namespace YieldInspector
         {
             if (thing is Plant plant && plant.IsCrop)
             {
-                var entries = AccessTools.Field(typeof(StatsReportUtility), "cachedDrawEntries").GetValue(null);
-                var fnAdd = entries.GetType().GetMethod("Add", new Type[] {typeof(StatDrawEntry) });
+//                 if (entries == null || FnAdd == null)
+//                 {
+//                     entries = AccessTools.Field(typeof(StatsReportUtility), "cachedDrawEntries").GetValue(null);
+//                     FnAdd = entries.GetType().GetMethod("Add", new Type[] { typeof(StatDrawEntry) });
+//                     fnAdd = (TFnAdd) Delegate.CreateDelegate(typeof(Action<StatDrawEntry>), entries, FnAdd);
+//                 }
+//                 Log.Message("Adding to cachedDrawEntries");
 
-                //Log.Message("Adding to cachedDrawEntries");
+                // TODO: Reduce usage of reflection.
+
+                var entries = (List<StatDrawEntry>)AccessTools.Field(typeof(StatsReportUtility), "cachedDrawEntries").GetValue(null);
+
+
 
                 float maxYield = plant.def.plant.harvestYield;
                 float efficiency = maxYield / plant.def.plant.growDays;
-                fnAdd.Invoke(entries, new object[] { new StatDrawEntry(StatCategoryDefOf.Basics, "YI.Yield".Translate(), plant.YieldNow().ToString(), 0, string.Empty) });
-                fnAdd.Invoke(entries, new object[] { new StatDrawEntry(StatCategoryDefOf.Basics, "YI.Maximum".Translate(), ((int)(maxYield)).ToString(), 0, string.Empty) });
-                fnAdd.Invoke(entries, new object[] { new StatDrawEntry(StatCategoryDefOf.Basics, "YI.Efficiency".Translate(), String.Format("{0:P2}", efficiency.ToString(), 0, string.Empty)) }) ;
+
+                // TODO: Get avg yield per day for zone instead of crop
+                
+                entries.Add(new StatDrawEntry(StatCategoryDefOf.Basics, "YI.Yield".Translate(), plant.YieldNow().ToString(), 0, string.Empty));
+                entries.Add(new StatDrawEntry(StatCategoryDefOf.Basics, "YI.Maximum".Translate(), ((int)(maxYield)).ToString(), 0, string.Empty));
+                entries.Add(new StatDrawEntry(StatCategoryDefOf.Basics, "YI.Efficiency2".Translate(), efficiency.ToString("0.##"), 0, string.Empty));
+//                 fnAdd(new StatDrawEntry(StatCategoryDefOf.Basics, "YI.Yield".Translate(), plant.YieldNow().ToString(), 0, string.Empty));
+//                 fnAdd(new StatDrawEntry(StatCategoryDefOf.Basics, "YI.Maximum".Translate(), ((int)(maxYield)).ToString(), 0, string.Empty));
+//                 fnAdd(new StatDrawEntry(StatCategoryDefOf.Basics, "YI.Efficiency".Translate(), efficiency.ToString("0.##"), 0, string.Empty));
+
+//                 FnAdd.Invoke(entries, new object[] { new StatDrawEntry(StatCategoryDefOf.Basics, "YI.Yield".Translate(), plant.YieldNow().ToString(), 0, string.Empty) });
+//                 FnAdd.Invoke(entries, new object[] { new StatDrawEntry(StatCategoryDefOf.Basics, "YI.Maximum".Translate(), ((int)(maxYield)).ToString(), 0, string.Empty) });
+//                 FnAdd.Invoke(entries, new object[] { new StatDrawEntry(StatCategoryDefOf.Basics, "YI.Efficiency".Translate(), efficiency.ToString("0.##"), 0, string.Empty) }) ;
 
 //                 entries.Add(new StatDrawEntry(StatCategoryDefOf.Basics, "YI.Yield".Translate(), plant.YieldNow().ToString(), 0, string.Empty));
 //                 entries.Add(new StatDrawEntry(StatCategoryDefOf.Basics, "YI.Maximum".Translate(), ((int)(maxYield)).ToString(), 0, string.Empty));
-//                 //entries.Add(new StatDrawEntry(StatCategoryDefOf.Basics, "Efficiency", String.Format("{0:0.##}%", efficiency.ToString())));
 //                 entries.Add(new StatDrawEntry(StatCategoryDefOf.Basics, "YI.Efficiency".Translate(), String.Format("{0:P2}", efficiency.ToString(), 0, string.Empty)));
 
 
@@ -215,7 +243,9 @@ namespace YieldInspector
 
         public static float YIActualGrowthTime(this Plant p) => (p.YIGrowthRemaining() * 60000 * p.def.plant.growDays) / (33000 * p.GrowthRate);
 
-        public static bool YIResting(this Plant p) => GenLocalDate.DayPercent(p) < 0.25f || GenLocalDate.DayPercent(p) > 0.8f;
+        public static bool YIResting(this Plant p) => YIIsRestingPeriod(p);
+
+        public static bool YIIsRestingPeriod(this Thing thing) => GenLocalDate.DayPercent(thing) < 0.25f || GenLocalDate.DayPercent(thing) > 0.8f;
     }
 
 }
